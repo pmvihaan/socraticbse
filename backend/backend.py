@@ -15,9 +15,17 @@ import time
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SEED_PATH = os.path.join(BASE_DIR, "seed_concept_graph.json")
 SESSIONS_PATH = os.path.join(BASE_DIR, "sessions_store.json")  # persistent sessions file
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 
-with open(SEED_PATH, "r", encoding="utf-8") as f:
-    concept_graph: List[Dict[str, Any]] = json.load(f)
+# Load concept graph with error handling
+try:
+    if not os.path.exists(SEED_PATH):
+        raise FileNotFoundError(f"Concept graph file not found: {SEED_PATH}")
+    with open(SEED_PATH, "r", encoding="utf-8") as f:
+        concept_graph: List[Dict[str, Any]] = json.load(f)
+except Exception as e:
+    print(f"Error loading concept graph: {e}")
+    concept_graph = []  # Empty fallback for graceful degradation
 
 # 3️⃣ In-memory sessions (will be loaded/saved to disk)
 sessions: Dict[str, Dict[str, Any]] = {}
@@ -25,10 +33,10 @@ sessions: Dict[str, Dict[str, Any]] = {}
 # 4️⃣ FastAPI app
 app = FastAPI(title="SocraticBSE Backend — Persistent + Dynamic Hints")
 
-# 5️⃣ CORS
+# 5️⃣ CORS - configured from environment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

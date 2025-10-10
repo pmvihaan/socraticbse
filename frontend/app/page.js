@@ -1,6 +1,8 @@
 "use client"; // 1️⃣ client component
 
 import { useState } from "react";
+import { API_CONFIG } from "./config";
+import { DialogueView } from "./components/DialogueView";
 
 export default function HomePage() {
   // 2️⃣ state
@@ -15,18 +17,22 @@ export default function HomePage() {
   const [progress, setProgress] = useState(null);
   const [reflection, setReflection] = useState(null);
   const [hintText, setHintText] = useState("");
-
-  // 3️⃣ backend base
-  const backendBase = "http://127.0.0.1:8000";
+  const [loading, setLoading] = useState(false);
 
   // helper: safe fetch wrapper
-  async function safeFetch(url, options) {
-    const res = await fetch(url, options);
-    if (!res.ok) {
-      const body = await res.text().catch(()=>"");
-      throw new Error(body || res.statusText);
+  async function safeFetch(endpoint, options) {
+    const url = `${API_CONFIG.backendBase}${endpoint}`;
+    setLoading(true);
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(body || res.statusText);
+      }
+      return await res.json();
+    } finally {
+      setLoading(false);
     }
-    return res.json();
   }
 
   // 4️⃣ start session
@@ -37,7 +43,7 @@ export default function HomePage() {
     setHintText("");
     setCurrentQuestion(null);
     try {
-      const data = await safeFetch(`${backendBase}/session/start`, {
+      const data = await safeFetch(API_CONFIG.endpoints.startSession, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -63,7 +69,7 @@ export default function HomePage() {
 
     try {
       setDialogue((p) => [...p, { speaker: "You", text: userAnswer }]);
-      const data = await safeFetch(`${backendBase}/session/turn`, {
+      const data = await safeFetch(API_CONFIG.endpoints.turn, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, user_answer: userAnswer }),
@@ -82,7 +88,7 @@ export default function HomePage() {
   const getHint = async () => {
     if (!sessionId) return alert("Start a session first.");
     try {
-      const data = await safeFetch(`${backendBase}/hint/${sessionId}`);
+      const data = await safeFetch(`${API_CONFIG.endpoints.hint}/${sessionId}`);
       setHintText(data.hint);
       setDialogue((p) => [...p, { speaker: "AI (Hint)", text: data.hint }]);
       fetchProgress(sessionId);
@@ -199,9 +205,7 @@ export default function HomePage() {
       <section style={{ marginTop:12 }}>
         <h3>Dialogue</h3>
         <div style={{ padding:12, background:"#fafafa", borderRadius:8, minHeight:80 }}>
-          {dialogue.length === 0 ? <div style={{ color:"#888" }}>No dialogue — start a session.</div> :
-            dialogue.map((d,i)=> (<div key={i} style={{ marginBottom:6 }}><strong>{d.speaker}:</strong> <span style={{marginLeft:8}}>{d.text}</span></div>))
-          }
+          <DialogueView dialogue={dialogue} />
         </div>
       </section>
 
