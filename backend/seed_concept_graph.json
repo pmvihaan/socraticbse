@@ -1,0 +1,50 @@
+[
+  {
+    "id": "C9_PHYS_NEWTON",
+    "title": "Newton's Laws of Motion",
+    "class": 9,
+    "subject": "Physics",
+    "prerequisites": ["Force", "Mass", "Motion"],
+    "questions": [
+      {"type": "elicitation", "question": "What happens to an object if no force acts on it?", "hint_level": 0},
+      {"type": "challenge", "question": "If a heavy truck and a light car are acted upon by the same force, how do their accelerations compare? Why?", "hint_level": 0},
+      {"type": "reflection", "question": "You said the truck moves slower — what assumptions are you making about friction and mass?", "hint_level": 1}
+    ]
+  },
+  {
+    "id": "C10_BIO_PHOTOSYN",
+    "title": "Photosynthesis",
+    "class": 10,
+    "subject": "Biology",
+    "prerequisites": ["Plant structure", "Sunlight", "Carbon dioxide"],
+    "questions": [
+      {"type": "elicitation", "question": "Why do you think plants need sunlight to make food?", "hint_level": 0},
+      {"type": "challenge", "question": "If plants can make food from sunlight, why do they still need water?", "hint_level": 0},
+      {"type": "reflection", "question": "You said sunlight gives energy — what exactly does 'energy' mean in this context?", "hint_level": 1}
+    ]
+  },
+  {
+    "id": "C12_MATH_DIFF",
+    "title": "Differentiation",
+    "class": 12,
+    "subject": "Mathematics",
+    "prerequisites": ["Limits", "Functions"],
+    "questions": [
+      {"type": "elicitation", "question": "What does the derivative of a function represent?", "hint_level": 0},
+      {"type": "challenge", "question": "How would the derivative behave at a point where the function has a sharp corner?", "hint_level": 0},
+      {"type": "reflection", "question": "You said slope of the tangent — what assumptions about continuity are you making?", "hint_level": 1}
+    ]
+  },
+  {
+    "id": "C11_PHYS_GRAV",
+    "title": "Gravitation",
+    "class": 11,
+    "subject": "Physics",
+    "prerequisites": ["Newton's Laws", "Mass", "Force"],
+    "questions": [
+      {"type": "elicitation", "question": "Why do objects fall towards the Earth?", "hint_level": 0},
+      {"type": "challenge", "question": "If the mass of the Earth doubled, how would the gravitational force on you change?", "hint_level": 0},
+      {"type": "reflection", "question": "You said heavier objects fall faster — is that always true? What assumptions are we making?", "hint_level": 1}
+    ]
+  }
+]

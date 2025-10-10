@@ -1,0 +1,150 @@
+{
+  "9a2cfdcd-48ae-4887-8878-073ecf48edb1": {
+    "user_id": "student1",
+    "current_concept": {
+      "id": "C10_BIO_PHOTOSYN",
+      "title": "Photosynthesis",
+      "class": 10,
+      "subject": "Biology",
+      "prerequisites": [
+        "Plant structure",
+        "Sunlight",
+        "Carbon dioxide"
+      ],
+      "questions": [
+        {
+          "type": "elicitation",
+          "question": "Why do you think plants need sunlight to make food?",
+          "hint_level": 0
+        },
+        {
+          "type": "challenge",
+          "question": "If plants can make food from sunlight, why do they still need water?",
+          "hint_level": 0
+        },
+        {
+          "type": "reflection",
+          "question": "You said sunlight gives energy — what exactly does 'energy' mean in this context?",
+          "hint_level": 1
+        }
+      ]
+    },
+    "dialogue": [
+      {
+        "speaker": "AI",
+        "text": "Why do you think plants need sunlight to make food?"
+      },
+      {
+        "speaker": "User",
+        "text": "12"
+      },
+      {
+        "speaker": "AI",
+        "text": "If plants can make food from sunlight, why do they still need water?"
+      },
+      {
+        "speaker": "User",
+        "text": "13"
+      },
+      {
+        "speaker": "AI",
+        "text": "You said sunlight gives energy — what exactly does 'energy' mean in this context?"
+      },
+      {
+        "speaker": "User",
+        "text": "14"
+      },
+      {
+        "speaker": "AI",
+        "text": "You said sunlight gives energy — what exactly does 'energy' mean in this context?"
+      },
+      {
+        "speaker": "AI",
+        "text": "You said sunlight gives energy — what exactly does 'energy' mean in this context?"
+      }
+    ],
+    "next_q_idx": 3,
+    "progress": {
+      "questions_answered": 3,
+      "total_questions": 3,
+      "concepts_covered": [
+        "Photosynthesis"
+      ]
+    },
+    "hint_level": 0
+  },
+  "b0b8126d-fcd0-4347-a20b-a4f2c100e4d7": {
+    "user_id": "student1",
+    "current_concept": {
+      "id": "C10_BIO_PHOTOSYN",
+      "title": "Photosynthesis",
+      "class": 10,
+      "subject": "Biology",
+      "prerequisites": [
+        "Plant structure",
+        "Sunlight",
+        "Carbon dioxide"
+      ],
+      "questions": [
+        {
+          "type": "elicitation",
+          "question": "Why do you think plants need sunlight to make food?",
+          "hint_level": 0
+        },
+        {
+          "type": "challenge",
+          "question": "If plants can make food from sunlight, why do they still need water?",
+          "hint_level": 0
+        },
+        {
+          "type": "reflection",
+          "question": "You said sunlight gives energy — what exactly does 'energy' mean in this context?",
+          "hint_level": 1
+        }
+      ]
+    },
+    "dialogue": [
+      {
+        "speaker": "AI",
+        "text": "Why do you think plants need sunlight to make food?"
+      },
+      {
+        "speaker": "User",
+        "text": "12"
+      },
+      {
+        "speaker": "AI",
+        "text": "If plants can make food from sunlight, why do they still need water?"
+      },
+      {
+        "speaker": "User",
+        "text": "13"
+      },
+      {
+        "speaker": "AI",
+        "text": "You said sunlight gives energy — what exactly does 'energy' mean in this context?"
+      },
+      {
+        "speaker": "AI",
+        "text": "You said sunlight gives energy — what exactly does 'energy' mean in this context?"
+      },
+      {
+        "speaker": "AI",
+        "text": "You said sunlight gives energy — what exactly does 'energy' mean in this context?"
+      },
+      {
+        "speaker": "User",
+        "text": "13"
+      }
+    ],
+    "next_q_idx": 3,
+    "progress": {
+      "questions_answered": 3,
+      "total_questions": 3,
+      "concepts_covered": [
+        "Photosynthesis"
+      ]
+    },
+    "hint_level": 0
+  }
+}
