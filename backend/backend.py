@@ -305,4 +305,4 @@ def skip_question(session_id: str):
 # 1️⃣7️⃣ Health
 @app.get("/health")
 def health():
-    return {"status":"ok","sessions_active":len(sessions)}
+    return {"status":"ok","sessions_active":len(sessions)} #actual wording
