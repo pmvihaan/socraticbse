@@ -1,14 +1,21 @@
 export function DialogueView({ dialogue = [] }) {
   if (dialogue.length === 0) {
     return (
-      <div style={{ color: "#888" }}>No dialogue — start a session.</div>
+      <div className="text-gray-500">No dialogue — start a session.</div>
     );
   }
 
-  return dialogue.map((d, i) => (
-    <div key={i} style={{ marginBottom: 6 }}>
-      <strong>{d.speaker}:</strong> 
-      <span style={{ marginLeft: 8 }}>{d.text}</span>
+  return (
+    <div className="dialog-container">
+      {dialogue.map((d, i) => (
+        <div 
+          key={i} 
+          className={`message-bubble ${d.speaker === 'AI' || d.speaker === 'AI (Hint)' ? 'ai-bubble' : 'user-bubble'}`}
+        >
+          <div className="font-semibold mb-1">{d.speaker}</div>
+          <div>{d.text}</div>
+        </div>
+      ))}
     </div>
-  ));
+  );
 }

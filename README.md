@@ -1,6 +1,27 @@
-# SocraticBSE
+# SocraticCBSE
 
-A Socratic learning platform for BSE (Board of Secondary Education) students.
+A Socratic learning platform designed specifically for CBSE (Central Board of Secondary Education) students in India. Currently focused on classes 9-12.
+
+## Features
+
+- 🎓 Interactive dialogue-based learning
+- 📚 CBSE curriculum-aligned content
+- 💡 Contextual hints and assistance
+- 🤔 Reflective learning approach
+- 📊 Progress tracking
+- 🔄 Adaptive questioning
+
+## Current Status
+
+- ✅ Core dialogue system implemented
+- ✅ Basic UI with React components
+- ✅ Question-answer workflow
+- ✅ Progress tracking
+- ✅ Hint system
+- ✅ Loading states and error handling
+- 🟡 Currently supporting:
+  - Classes: 9th to 12th
+  - Initial subjects: Biology, Physics, Chemistry
 
 ## Project Structure
 
@@ -13,6 +34,8 @@ backend/
 frontend/
   ├── app/              # Next.js app directory
   │   ├── components/   # React components
+  │   │   ├── DialogueView.js    # Chat interface
+  │   │   └── LoadingSpinner.js  # Loading states
   │   ├── config.js     # Frontend configuration
   │   └── page.js       # Main page component
   └── package.json      # Node.js dependencies
@@ -50,6 +73,19 @@ npm run dev
 
 The frontend will be available at http://localhost:3000
 
+## Technical Stack
+
+### Frontend
+- Next.js 13+
+- React 18
+- Tailwind CSS for styling
+- Responsive design for all devices
+
+### Backend
+- FastAPI for high-performance API
+- File-based session persistence
+- Concept graph for adaptive learning
+
 ## Environment Variables
 
 Backend:
@@ -62,18 +98,36 @@ Frontend:
 
 ## API Endpoints
 
+### Session Management
 - POST `/session/start`: Start a new learning session
 - POST `/session/turn`: Submit an answer and get next question
-- GET `/hint/{session_id}`: Get a hint for current question
-- POST `/retry/{session_id}`: Retry current question
-- POST `/skip/{session_id}`: Skip to next question
-- GET `/reflection/{session_id}`: Get session reflection
 - GET `/progress/{session_id}`: Get session progress
+
+### Learning Support
+- GET `/hint/{session_id}`: Get contextual hints
+- POST `/retry/{session_id}`: Retry current question
+- POST `/skip/{session_id}`: Move to next question
+- GET `/reflection/{session_id}`: Get personalized reflection
+
+### System
 - GET `/health`: Health check endpoint
 
-## Development
+## Upcoming Features
 
-- Backend uses FastAPI with file-based session persistence
-- Frontend uses Next.js 13+ with App Router
+- [ ] Support for more CBSE subjects
+- [ ] Enhanced concept mapping with LLM integration
+- [ ] AI-powered personalized learning paths
+- [ ] Performance analytics
+- [ ] Offline mode support
+- [ ] Parent/Teacher dashboard
+- [ ] Practice tests and assessments
+
+## Contributing
+
+We welcome contributions from educators, developers, and CBSE experts. Please see our contributing guidelines for more information.
+
+## License
+
+This project is proprietary and all rights are reserved. © 2025 SocraticCBSE
 - Communication via REST API endpoints
 - Simple styling with inline styles (MVP version)
