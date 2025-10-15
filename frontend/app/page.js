@@ -4,6 +4,7 @@ import { useState } from "react";
 import { API_CONFIG } from "./config";
 import { DialogueView } from "./components/DialogueView";
 import { LoadingSpinner } from "./components/LoadingSpinner";
+import { ProgressStats } from "./components/ProgressStats";
 
 export default function HomePage() {
   // State
@@ -45,9 +46,10 @@ export default function HomePage() {
     }
   }
 
-  // 4️⃣ start session
+    // 4️⃣ start session
   const startSession = async () => {
     setDialogue([]);
+    setQuestionShownAt(Date.now());
     setReflection(null);
     setProgress(null);
     setHintText("");
@@ -92,6 +94,8 @@ export default function HomePage() {
         body: JSON.stringify({ 
           session_id: sessionId, 
           user_answer: userAnswer,
+          client_timestamp: Date.now(),
+          question_shown_at: questionShownAt,
           answered_at: new Date().toISOString(),
           time_spent_ms: timeSpent
         }),
@@ -293,6 +297,9 @@ export default function HomePage() {
               ✅ Completed for this concept — fetch reflection or Retry/Skip to revisit.
             </div>
           )}
+          
+          {/* Progress Stats */}
+          <ProgressStats progress={progress} />
         </section>
       )}
 

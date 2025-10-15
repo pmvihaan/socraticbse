@@ -31,13 +31,25 @@ The name "SocraticBSE" blends "Socratic" (question-driven learning) with "CBSE" 
 ## Key Features
 
 - Dialogue-based AI tutoring (question → answer → hint → reflection)  
-- Progress tracking: questions answered, percentage complete  
+- Advanced progress tracking:
+  - Questions answered and completion percentage
+  - Time per question and total time tracking
+  - Average response time analytics
+  - Concepts covered counter
 - Hint system (incremental, context-aware)  
 - Retry and Skip controls per question  
-- Persistent session storage — sessions survive backend restarts  
-- Modular frontend architecture (React / Next.js)  
-- Configurable backend CORS & environment setup  
-- Clean error handling and fallback defaults
+- SQLite persistence with JSON fallback
+  - Reliable data storage with database migrations
+  - Session survival across backend restarts
+  - Accurate timing and progress metrics
+- Modern frontend architecture (React / Next.js)
+  - Real-time progress updates
+  - Responsive timing displays
+  - Clean, accessible UI components
+- Configurable backend (FastAPI):
+  - CORS and environment setup
+  - Clean error handling and fallbacks
+  - Efficient database queries
 
 ## How the Socratic Part Works
 
