@@ -167,8 +167,14 @@ We welcome collaboration from educators, CBSE experts, UI designers, and develop
 
 ## License & Acknowledgments
 
-This project is under .[Your License Here]
+This project is licensed under the Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0) license.
+You are free to share and adapt the material for non-commercial purposes, as long as appropriate credit is given.
 
-Built with FastAPI, Next.js, and a Socratic learning philosophy
+See the full license here:
+https://creativecommons.org/licenses/by-nc/4.0/
 
-Thanks to CBSE curriculum guides, open educational resource communities
+Built with FastAPI, Next.js, and a Socratic learning philosophy — guiding learners through reflective questioning rather than direct instruction.
+
+Inspired by the CBSE curriculum and open educational resources (OER).
+
+Special thanks to the open-source community for enabling transparent, accessible AI-powered education.
