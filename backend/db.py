@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, JSON, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+from datetime import datetime, UTC
 import os
 
 # Create SQLite database engine
@@ -22,7 +22,7 @@ class Session(Base):
 
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"))
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=lambda: datetime.now(UTC))
     concept_data = Column(JSON)  # Store current concept data
     next_q_idx = Column(Integer, default=0)
     hint_level = Column(Integer, default=0)
@@ -36,7 +36,7 @@ class Turn(Base):
 
     id = Column(Integer, primary_key=True)
     session_id = Column(String, ForeignKey("sessions.id"))
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(UTC))
     speaker = Column(String)  # "User" or "AI"
     text = Column(String)
     time_spent = Column(Float, nullable=True)  # Time spent on this turn in seconds

@@ -1,10 +1,11 @@
 "use client"; // 1️⃣ client component
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { API_CONFIG } from "./config";
 import { DialogueView } from "./components/DialogueView";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { ProgressStats } from "./components/ProgressStats";
+import { ConceptSelector } from "./components/ConceptSelector";
 
 export default function HomePage() {
   // State
@@ -29,18 +30,77 @@ export default function HomePage() {
   const [isSkipping, setIsSkipping] = useState(false);
   const [isGettingReflection, setIsGettingReflection] = useState(false);
   const [questionShownAt, setQuestionShownAt] = useState(null);
+  const [questionStart, setQuestionStart] = useState(null);
+  const [dialogueTiming, setDialogueTiming] = useState([]);
+
+  // Auto-fetch progress when session changes
+  useEffect(() => {
+    if (sessionId) {
+      fetchProgress(sessionId);
+    }
+  }, [sessionId]);
+
+  // Timer start when new question arrives
+  useEffect(() => {
+    if (currentQuestion && currentQuestion.question) {
+      setQuestionStart(Date.now());
+      console.debug('Question started at', Date.now());
+    }
+  }, [currentQuestion?.question]);
+
+  // Helper: classify speed based on elapsed seconds
+  const classifySpeed = (elapsedSeconds) => {
+    if (elapsedSeconds <= 15) return "fast";
+    if (elapsedSeconds <= 45) return "medium";
+    return "slow";
+  };
 
   // helper: safe fetch wrapper
-  async function safeFetch(endpoint, options) {
-    const url = `${API_CONFIG.backendBase}${endpoint}`;
+  async function safeFetch(endpoint, options = {}) {
+    if (!endpoint) throw new Error("Endpoint is required");
+    if (endpoint.startsWith('/')) {
+      endpoint = endpoint.slice(1); // Remove leading slash if present
+    }
+    const url = `${API_CONFIG.backendBase}/${endpoint}`;
     setLoading(true);
+    
     try {
-      const res = await fetch(url, options);
+      console.log("Fetching:", url, options); // Debug log
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options?.headers || {})
+        },
+        mode: 'cors',
+        credentials: 'same-origin'
+      });
+      
+      const contentType = res.headers.get("content-type");
+      
       if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(body || res.statusText);
+        let errorMessage;
+        try {
+          if (contentType?.includes("application/json")) {
+            const errorData = await res.json();
+            errorMessage = errorData.detail || errorData.message || res.statusText;
+          } else {
+            errorMessage = await res.text();
+          }
+        } catch {
+          errorMessage = res.statusText;
+        }
+        throw new Error(errorMessage);
       }
-      return await res.json();
+      
+      if (contentType?.includes("application/json")) {
+        return await res.json();
+      }
+      return await res.text();
+      
+    } catch (e) {
+      console.error("Fetch error:", e); // Debug log
+      throw e;
     } finally {
       setLoading(false);
     }
@@ -69,7 +129,9 @@ export default function HomePage() {
       });
       setSessionId(data.session_id);
       setCurrentQuestion(data);
-      setDialogue([{ speaker: "AI", text: data.question }]);
+      // Add AI marker to show this is AI-generated
+      setDialogue([{ speaker: "AI 🤖", text: data.question, ai_generated: true }]);
+      console.log("🤖 AI-Generated question received from Groq API");
       setQuestionShownAt(Date.now());
       fetchProgress(data.session_id);
     } catch (e) {
@@ -80,34 +142,59 @@ export default function HomePage() {
   };
 
   // 5️⃣ submit answer
-  const submitAnswer = async () => {
+  const submitAnswer = async (e) => {
+    e?.preventDefault(); // Prevent form submission if called from form submit
     if (!sessionId) return alert("Start a session first.");
     if (!userAnswer.trim()) return alert("Please type an answer or use Skip/Retry.");
+    if (isSubmitting) return; // Prevent double submission
 
     setIsSubmitting(true);
     try {
-      const timeSpent = Date.now() - questionShownAt;
-      setDialogue((p) => [...p, { speaker: "You", text: userAnswer }]);
-      const data = await safeFetch(API_CONFIG.endpoints.turn, {
+      // Calculate timing
+      const elapsed = Math.round((Date.now() - (questionStart || Date.now())) / 1000);
+      const speed = classifySpeed(elapsed);
+      
+      console.debug('Answer elapsed', elapsed, 'speed', speed);
+      
+      // Add timing info to dialogue
+      const userTurn = { 
+        speaker: "You", 
+        text: userAnswer, 
+        time_spent: elapsed, 
+        speed: speed 
+      };
+      setDialogue((p) => [...p, userTurn]);
+      
+      // Update dialogue timing state
+      setDialogueTiming(prev => [...prev, { elapsed, speed }]);
+      
+      const data = await safeFetch("/session/turn", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           session_id: sessionId, 
           user_answer: userAnswer,
+          time_spent_seconds: elapsed,
+          time_speed_bucket: speed,
+          // TODO: Backend may not accept these fields yet, but including for future use
           client_timestamp: Date.now(),
           question_shown_at: questionShownAt,
           answered_at: new Date().toISOString(),
-          time_spent_ms: timeSpent
+          time_spent_ms: elapsed * 1000
         }),
       });
+      
       setCurrentQuestion(data);
       if (data.question) {
-        setDialogue((p) => [...p, { speaker: "AI", text: data.question }]);
+        // Don't add question to dialogue here - backend already handles this
         setQuestionShownAt(Date.now());
+        // Reset timer for new question
+        setQuestionStart(Date.now());
       }
       setUserAnswer("");
       setHintText("");
-      fetchProgress(sessionId);
+      await fetchProgress(sessionId);
+      // Refresh dialogue to get the latest from backend
+      await refreshDialogue(sessionId);
     } catch (e) {
       alert("Submit failed: " + e.message);
     } finally {
@@ -116,66 +203,194 @@ export default function HomePage() {
   };
 
   // 6️⃣ get hint (dynamic)
-  const getHint = async () => {
+  const getHint = async (e) => {
+    e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Stop event bubbling
     if (!sessionId) return alert("Start a session first.");
+    if (isGettingHint) return; // Prevent double clicks
+    setIsGettingHint(true);
     try {
-      const data = await safeFetch(`${API_CONFIG.endpoints.hint}/${sessionId}`);
+      const endpoint = `/hint/${sessionId}`;
+      const data = await safeFetch(endpoint);
       setHintText(data.hint);
-      setDialogue((p) => [...p, { speaker: "AI (Hint)", text: data.hint }]);
-      fetchProgress(sessionId);
+      if (data.hint) {
+        setDialogue((prev) => [...prev, { 
+          speaker: "AI (Hint)", 
+          text: data.hint,
+          timestamp: Date.now()
+        }]);
+      }
+      await fetchProgress(sessionId);
     } catch (e) {
       alert("Hint failed: " + e.message);
+    } finally {
+      setIsGettingHint(false);
     }
   };
 
-  // 7️⃣ retry question
-  const retryQuestion = async () => {
+  // 7️⃣ retry question (with improved handling)
+  const retryQuestion = async (e) => {
+    e.preventDefault(); // Prevent form submission
     if (!sessionId) return alert("Start a session first.");
+    setIsRetrying(true);
     try {
-      const data = await safeFetch(`${API_CONFIG.endpoints.retry}/${sessionId}`, { method: "POST" });
+      const endpoint = `/retry/${sessionId}`;
+      const data = await safeFetch(endpoint, { 
+        method: "POST" 
+      });
+      
       setCurrentQuestion(data);
-      if (data.question) setDialogue((p) => [...p, { speaker: "AI", text: data.question }]);
+      if (data.question) {
+        setDialogue((prev) => [...prev, {
+          speaker: "AI",
+          text: data.question,
+          timestamp: Date.now(),
+          type: data.question_type
+        }]);
+        setQuestionShownAt(Date.now());
+        // Reset timer for new question
+        setQuestionStart(Date.now());
+      }
       setHintText("");
-      fetchProgress(sessionId);
+      setUserAnswer("");
+      await fetchProgress(sessionId);
+      // Refresh dialogue to get the latest from backend
+      await refreshDialogue(sessionId);
     } catch (e) {
       alert("Retry failed: " + e.message);
+    } finally {
+      setIsRetrying(false);
     }
   };
 
-  // 8️⃣ skip question
-  const skipQuestion = async () => {
+  // 8️⃣ skip question (with transition handling)
+  const skipQuestion = async (e) => {
+    e.preventDefault(); // Prevent form submission
     if (!sessionId) return alert("Start a session first.");
+    setIsSkipping(true);
     try {
-      const data = await safeFetch(`${API_CONFIG.endpoints.skip}/${sessionId}`, { method: "POST" });
+      // Add skipped marker to dialogue
+      setDialogue((prev) => [...prev, {
+        speaker: "System",
+        text: "Question skipped",
+        timestamp: Date.now(),
+        type: "skip"
+      }]);
+      
+      const endpoint = `/skip/${sessionId}`;
+      const data = await safeFetch(endpoint, { 
+        method: "POST" 
+      });
+      
       setCurrentQuestion(data);
-      if (data.question) setDialogue((p) => [...p, { speaker: "AI", text: data.question }]);
+      if (data.question) {
+        setDialogue((prev) => [...prev, {
+          speaker: "AI",
+          text: data.question,
+          timestamp: Date.now(),
+          type: data.question_type
+        }]);
+        setQuestionShownAt(Date.now());
+        // Reset timer for new question
+        setQuestionStart(Date.now());
+      }
       setHintText("");
-      fetchProgress(sessionId);
+      setUserAnswer("");
+      await fetchProgress(sessionId);
+      // Refresh dialogue to get the latest from backend
+      await refreshDialogue(sessionId);
     } catch (e) {
       alert("Skip failed: " + e.message);
+    } finally {
+      setIsSkipping(false);
     }
   };
 
   // 9️⃣ reflection (always available)
-  const fetchReflection = async () => {
+  const fetchReflection = async (e) => {
+    e?.preventDefault(); // Prevent form submission if called from button
     if (!sessionId) return alert("Start a session first.");
+    setIsGettingReflection(true);
     try {
-      const data = await safeFetch(`${API_CONFIG.endpoints.reflection}/${sessionId}`);
+      const endpoint = `/reflection/${sessionId}`;
+      const data = await safeFetch(endpoint);
       setReflection(data);
+      console.log("🤖 AI-Generated reflection received from Groq API");
+      
+      // Add reflection to dialogue
+      if (data.summary_text) {
+        setDialogue((prev) => [...prev, {
+          speaker: "AI (Reflection)",
+          text: data.summary_text,
+          timestamp: Date.now(),
+          type: "reflection"
+        }]);
+      }
+      
+      // Show suggested next concepts
+      if (data.suggested_next_concepts?.length) {
+        setDialogue((prev) => [...prev, {
+          speaker: "System",
+          text: `Suggested next concepts: ${data.suggested_next_concepts.join(", ")}`,
+          timestamp: Date.now(),
+          type: "suggestions"
+        }]);
+      }
     } catch (e) {
       alert("Reflection failed: " + e.message);
+    } finally {
+      setIsGettingReflection(false);
     }
   };
 
-  // 🔟 progress
+  // 🔟 refresh dialogue from backend
+  const refreshDialogue = async (sid) => {
+    try {
+      const id = sid || sessionId;
+      if (!id) return;
+      
+      // Get session data which includes dialogue
+      const session = await safeFetch(`/session/${id}`);
+      if (session && session.dialogue) {
+        setDialogue(session.dialogue);
+      }
+    } catch (e) {
+      console.warn("Dialogue refresh failed:", e.message);
+    }
+  };
+
+  // 🔟 progress (with error retries)
   const fetchProgress = async (sid) => {
     try {
       const id = sid || sessionId;
       if (!id) return;
-      const data = await safeFetch(`${API_CONFIG.endpoints.progress}/${id}`);
+      const endpoint = `/progress/${id}`;
+      const data = await safeFetch(endpoint);
+      
+      // Update progress state
       setProgress(data);
+      
+      // Calculate and log progress percentage
+      const percent = Math.min(100, Math.round((data.questions_answered / Math.max(data.total_questions, 1)) * 100));
+      console.debug('Progress:', data.questions_answered, '/', data.total_questions, percent + '%');
+      
+      // Show completion message if all questions answered
+      if (data.questions_answered === data.total_questions && !reflection) {
+        setDialogue((prev) => {
+          // Avoid duplicate completion messages
+          if (prev[prev.length - 1]?.type === "completion") return prev;
+          return [...prev, {
+            speaker: "System",
+            text: "✅ Completed for this concept — fetch reflection or Retry/Skip to revisit.",
+            timestamp: Date.now(),
+            type: "completion"
+          }];
+        });
+      }
     } catch (e) {
       console.warn("Progress fetch:", e.message);
+      // Retry once after a short delay
+      setTimeout(() => fetchProgress(sid), 1000);
     }
   };
 
@@ -220,11 +435,12 @@ export default function HomePage() {
             <option>Mathematics</option>
             <option>Chemistry</option>
           </select>
-          <input
-            className="input-field"
-            value={concept}
-            onChange={(e) => setConcept(e.target.value)}
-            placeholder="Concept (e.g., Photosynthesis)"
+          <ConceptSelector
+            classGrade={Number(classGrade)}
+            subject={subject}
+            selectedConcept={concept}
+            onConceptChange={setConcept}
+            disabled={isStarting}
           />
           <button
             className="button-primary"
@@ -236,100 +452,169 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Question + controls */}
+      {/* Question + Controls */}
       {currentQuestion && (
         <section className="mt-6 p-6 rounded-lg border border-blue-100 bg-blue-50">
           <h3 className="text-xl font-semibold mb-4">AI Question</h3>
-          <p className="mb-4 text-lg">{currentQuestion.question}</p>
+          <p className="mb-4 text-lg text-gray-800">{currentQuestion.question}</p>
 
-          <div className="flex flex-wrap gap-3 items-center">
-            <input
-              className="input-field flex-grow"
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              placeholder={isCompleted ? "Session completed — use Retry/Skip or Get Reflection" : "Type your answer..."}
-              disabled={isCompleted || isSubmitting}
-            />
+          {/* Answer Form */}
+          <form onSubmit={submitAnswer} className="mb-4">
+            <div className="flex flex-wrap gap-3 items-center">
+              <input
+                className="input-field flex-grow min-w-[300px]"
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                placeholder={isCompleted ? "Session completed — use Retry/Skip or Get Reflection" : "Type your answer..."}
+                disabled={isCompleted || isSubmitting}
+              />
+              <button
+                type="submit"
+                className={`button-primary ${isSubmitting ? 'opacity-75' : ''}`}
+                disabled={isCompleted || isSubmitting || !userAnswer.trim()}
+              >
+                {isSubmitting ? <LoadingSpinner /> : "Submit"}
+              </button>
+            </div>
+          </form>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-3 items-center mb-4">
             <button
-              className="button-primary"
-              onClick={submitAnswer}
-              disabled={isCompleted || isSubmitting || !userAnswer.trim()}
-            >
-              {isSubmitting ? <LoadingSpinner /> : "Submit"}
-            </button>
-            <button
-              className="button-hint"
+              type="button"
+              className={`button-hint ${isGettingHint ? 'opacity-75' : ''}`}
               onClick={getHint}
-              disabled={isCompleted || isGettingHint}
+              disabled={isGettingHint || isSubmitting}
+              title="Get a helpful hint for this question"
             >
               {isGettingHint ? <LoadingSpinner /> : "Get Hint"}
             </button>
             <button
-              className="button-secondary"
+              type="button"
+              className={`button-secondary ${isRetrying ? 'opacity-75' : ''}`}
               onClick={retryQuestion}
-              disabled={isRetrying}
+              disabled={isRetrying || isSubmitting}
+              title="Try a different version of this question"
             >
               {isRetrying ? <LoadingSpinner /> : "Retry"}
             </button>
             <button
-              className="button-warning"
+              type="button"
+              className={`button-warning ${isSkipping ? 'opacity-75' : ''}`}
               onClick={skipQuestion}
-              disabled={isSkipping}
+              disabled={isSkipping || isSubmitting}
+              title="Skip this question and move to the next one"
             >
               {isSkipping ? <LoadingSpinner /> : "Skip"}
             </button>
             <button
-              className="button-reflection"
+              type="button"
+              className={`button-reflection ${isGettingReflection ? 'opacity-75' : ''} ml-auto`}
               onClick={fetchReflection}
-              disabled={isGettingReflection}
+              disabled={isGettingReflection || isSubmitting}
+              title="Get a summary of your progress"
             >
               {isGettingReflection ? <LoadingSpinner /> : "Get Reflection"}
             </button>
           </div>
 
+          {/* Status Messages */}
           {hintText && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-100 rounded text-yellow-800">
-              <strong>Hint:</strong> {hintText}
-            </div>
-          )}
-          {isCompleted && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded text-green-800">
-              ✅ Completed for this concept — fetch reflection or Retry/Skip to revisit.
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-lg text-yellow-800 shadow-sm">
+              <strong className="font-medium">💡 Hint:</strong> {hintText}
             </div>
           )}
           
-          {/* Progress Stats */}
-          <ProgressStats progress={progress} />
+          {isCompleted && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-100 rounded-lg text-green-800 shadow-sm">
+              <p className="font-medium">✅ Concept completed!</p>
+              <p className="mt-1 text-sm">Use Get Reflection to review your progress, or Retry/Skip to revisit questions.</p>
+            </div>
+          )}
+          
+          {/* Progress Stats - Removed duplicate, using main progress tracker below */}
         </section>
       )}
 
-      {/* Dialogue */}
-      <section style={{ marginTop:12 }}>
-        <h3>Dialogue</h3>
-        <div style={{ padding:12, background:"#fafafa", borderRadius:8, minHeight:80 }}>
+      {/* Dialogue History */}
+      <section className="mt-8">
+        <h3 className="text-xl font-semibold mb-4">Dialogue</h3>
+        <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm min-h-[200px]">
           <DialogueView dialogue={dialogue} />
         </div>
       </section>
 
-      {/* Progress */}
+      {/* Progress - Single consolidated tracker */}
       {progress && (
-        <section style={{ marginTop:12, padding:12, borderRadius:8, border:"1px solid #eee" }}>
-          <h3>Progress</h3>
-          <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-            <progress value={progress.questions_answered} max={progress.total_questions} style={{ width:"100%" }} />
-            <div style={{ minWidth:60, textAlign:"right" }}>{Math.round((progress.questions_answered / Math.max(progress.total_questions,1))*100)}%</div>
+        <section className="mt-6 p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">Session Progress</h3>
+          <div className="space-y-4">
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-600">Questions Completed</span>
+                <span className="text-sm font-bold text-blue-600">
+                  {Math.min(100, Math.round((progress.questions_answered / Math.max(progress.total_questions, 1)) * 100))}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-blue-500 h-3 rounded-full transition-all duration-500 ease-out"
+                  style={{ 
+                    width: `${Math.min(100, Math.round((progress.questions_answered / Math.max(progress.total_questions, 1)) * 100))}%` 
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>{progress.questions_answered} answered</span>
+                <span>{progress.total_questions} total</span>
+              </div>
+            </div>
+            
+            {/* Additional Progress Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+              <div>
+                <span className="text-sm font-medium text-gray-600">Concepts Covered:</span>
+                <div className="text-sm text-gray-800 mt-1">
+                  {progress.concepts_covered?.join(", ") || "None"}
+                </div>
+              </div>
+              {progress.avg_time_per_question > 0 && (
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Avg. Time per Question:</span>
+                  <div className="text-sm text-gray-800 mt-1">
+                    {Math.round(progress.avg_time_per_question)}s
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{ marginTop:8 }}>{progress.questions_answered} / {progress.total_questions} answered</div>
-          <div>Concepts covered: {progress.concepts_covered.join(", ")}</div>
         </section>
       )}
 
       {/* Reflection */}
       {reflection && (
-        <section style={{ marginTop:12, padding:12, background:"#fffbe6", borderRadius:8 }}>
-          <h3>Reflection</h3>
-          <div style={{ marginBottom:8 }}>{reflection.summary_text}</div>
-          <div><strong>Suggested next concepts:</strong> {reflection.suggested_next_concepts.join(", ")}</div>
+        <section className="mt-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 text-yellow-800">🤖 AI Reflection</h3>
+          <div className="space-y-4">
+            <div className="text-gray-800">{reflection.summary_text}</div>
+            
+            {reflection.focus_areas && reflection.focus_areas.length > 0 && (
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-2">🎯 Focus Areas for Improvement:</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-700">
+                  {reflection.focus_areas.map((area, index) => (
+                    <li key={index}>{area}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <div>
+              <strong className="text-gray-700">Suggested next concepts:</strong>
+              <span className="ml-2 text-gray-600">{reflection.suggested_next_concepts.join(", ")}</span>
+            </div>
+          </div>
         </section>
       )}
 

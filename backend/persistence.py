@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, UTC
 import db
 from db import User, Session as DBSession, Turn, Progress
 
@@ -49,7 +49,7 @@ class PersistenceLayer:
             id=session_id,
             user_id=user_id,
             concept_data=concept_data,
-            started_at=datetime.utcnow()
+            started_at=datetime.now(UTC)
         )
         db_session.add(session)
         
@@ -68,8 +68,8 @@ class PersistenceLayer:
                 "current_concept": concept_data,
                 "dialogue": [],
                 "next_q_idx": 0,
-                "started_at": datetime.utcnow().timestamp(),
-                "last_turn_at": datetime.utcnow().timestamp(),
+                "started_at": datetime.now(UTC).timestamp(),
+                "last_turn_at": datetime.now(UTC).timestamp(),
                 "turn_timestamps": [],
                 "progress": {
                     "questions_answered": 0,
@@ -140,6 +140,10 @@ class PersistenceLayer:
     
     def add_turn(self, db_session: Session, session_id: str, speaker: str, text: str, time_spent: Optional[float] = None):
         """Add a turn to the session"""
+        session = db_session.query(DBSession).filter(DBSession.id == session_id).first()
+        if not session:
+            return
+            
         # Add to DB
         turn = Turn(
             session_id=session_id,
@@ -149,29 +153,43 @@ class PersistenceLayer:
         )
         db_session.add(turn)
         
-        # Update session
-        session = db_session.query(DBSession).filter(DBSession.id == session_id).first()
-        if speaker == "User":
-            # Update progress for user turns
+        # Only update progress when:
+        # 1. It's a user turn (answer)
+        # 2. The text isn't empty
+        # 3. The question index matches total answered questions (prevents double counting)
+        if speaker == "User" and text.strip():
             progress = db_session.query(Progress).filter(Progress.session_id == session_id).first()
-            if progress and text.strip():
-                progress.questions_answered += 1
-                if time_spent:
-                    times = progress.times_per_question or []
-                    times.append(time_spent)
-                    progress.times_per_question = times
-        
-        if self.use_json:
-            if session_id in self._sessions_cache:
-                self._sessions_cache[session_id]["dialogue"].append({
-                    "speaker": speaker,
-                    "text": text
-                })
-                if speaker == "User" and text.strip():
-                    self._sessions_cache[session_id]["progress"]["questions_answered"] += 1
+            if progress:
+                current_answered = progress.questions_answered
+                total_questions = progress.total_questions
+                
+                # Only increment if we haven't answered this question yet
+                if current_answered < total_questions and current_answered + 1 == session.next_q_idx:
+                    progress.questions_answered += 1
                     if time_spent:
-                        self._sessions_cache[session_id]["progress"]["times_per_question"].append(time_spent)
-                self._save_json()
+                        times = progress.times_per_question or []
+                        times.append(time_spent)
+                        progress.times_per_question = times
+        
+        if self.use_json and session_id in self._sessions_cache:
+            self._sessions_cache[session_id]["dialogue"].append({
+                "speaker": speaker,
+                "text": text,
+                "timestamp": datetime.now(UTC).timestamp()
+            })
+            
+            # Apply same progress logic to JSON cache
+            if speaker == "User" and text.strip():
+                cache_progress = self._sessions_cache[session_id]["progress"]
+                current_answered = cache_progress["questions_answered"]
+                total_questions = cache_progress["total_questions"]
+                
+                if current_answered < total_questions and current_answered + 1 == self._sessions_cache[session_id]["next_q_idx"]:
+                    cache_progress["questions_answered"] += 1
+                    if time_spent:
+                        cache_progress["times_per_question"].append(time_spent)
+            
+            self._save_json()
         
         db_session.commit()
     

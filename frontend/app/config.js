@@ -9,6 +9,7 @@ export const API_CONFIG = {
     skip: "/skip",
     reflection: "/reflection",
     progress: "/progress",
+    concepts: "/concepts",
     health: "/health"
   }
 };

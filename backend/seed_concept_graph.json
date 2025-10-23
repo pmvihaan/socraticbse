@@ -1,5 +1,17 @@
 [
   {
+    "id": "C9_MATH_ADD",
+    "title": "Addition",
+    "class": 9,
+    "subject": "Mathematics",
+    "prerequisites": ["Counting", "Numbers"],
+    "questions": [
+      {"type": "elicitation", "question": "How do we add two-digit numbers?", "hint_level": 0},
+      {"type": "challenge", "question": "Why does carrying over work when adding numbers?", "hint_level": 0},
+      {"type": "reflection", "question": "How is addition related to counting?", "hint_level": 1}
+    ]
+  },
+  {
     "id": "C9_PHYS_NEWTON",
     "title": "Newton's Laws of Motion",
     "class": 9,
